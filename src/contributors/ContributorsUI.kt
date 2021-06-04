@@ -104,7 +104,7 @@ class ContributorsUI : JFrame("GitHub Contributors"), Contributors {
     override fun setActionsStatus(newLoadingEnabled: Boolean, cancellationEnabled: Boolean) {
         load.isEnabled = newLoadingEnabled
         cancel.isEnabled = cancellationEnabled
-        export.isEnabled = cancellationEnabled
+        export.isEnabled = newLoadingEnabled
     }
 
     override fun setParams(params: Params) {
@@ -131,10 +131,13 @@ class ContributorsUI : JFrame("GitHub Contributors"), Contributors {
     override fun updateVideos(video: Video) {
         setOfVideos.add(video)
         if(video.title.matchesVideoConstraint()) resultsModel.addRow(arrayOf(video.id, video.title))
+        println("setOfVideos.size=${setOfVideos.size}, endTime=$endTime")
+        if(setOfVideos.size == endTime) resultsModel.addRow(arrayOf(video.id, "Done"))
     }
-
+var startTime:Int? = null
+var endTime:Int? = null
     override fun getStartAndEnd(): Pair<Int, Int> {
-        return Pair(start.text.toInt(), end.text.toInt())
+        return Pair(startTime ?: start.text.toInt().also{startTime = it}, endTime ?: end.text.toInt().also{endTime = it})
     }
 }
 
