@@ -16,12 +16,15 @@ private val COLUMNS = arrayOf("Login", "Contributions")
 
 @Suppress("CONFLICTING_INHERITED_JVM_DECLARATIONS")
 class ContributorsUI : JFrame("GitHub Contributors"), Contributors {
-    private val username = JTextField(20)
-    private val password = JPasswordField(20)
-    private val org = JTextField(20)
+    private val start = JTextField(20)
+    private val end = JTextField(20)
+    private val username = JTextField(20).apply{isVisible = false}
+    private val password = JPasswordField(20).apply{isVisible = false}
+    private val org = JTextField(20).apply{isVisible = false}
     private val variant = JComboBox<Variant>(Variant.values())
-    private val load = JButton("Load contributors")
+    private val load = JButton("Run")
     private val cancel = JButton("Cancel").apply { isEnabled = false }
+    private val export = JButton("Export").apply { isEnabled = false }
 
     private val resultsModel = DefaultTableModel(COLUMNS, 0)
     private val results = JTable(resultsModel)
@@ -36,16 +39,17 @@ class ContributorsUI : JFrame("GitHub Contributors"), Contributors {
 
     init {
         // Create UI
+        export.addActionListener { writeVideosToFile() }
         rootPane.contentPane = JPanel(GridBagLayout()).apply {
-            addLabeled("GitHub Username", username)
-            addLabeled("Password/Token", password)
+            addLabeled("Start", start)
+            addLabeled("End", end)
             addWideSeparator()
-            addLabeled("Organization", org)
             addLabeled("Variant", variant)
             addWideSeparator()
             addWide(JPanel().apply {
                 add(load)
                 add(cancel)
+                add(export)
             })
             addWide(resultsScroll) {
                 weightx = 1.0
@@ -100,6 +104,7 @@ class ContributorsUI : JFrame("GitHub Contributors"), Contributors {
     override fun setActionsStatus(newLoadingEnabled: Boolean, cancellationEnabled: Boolean) {
         load.isEnabled = newLoadingEnabled
         cancel.isEnabled = cancellationEnabled
+        export.isEnabled = cancellationEnabled
     }
 
     override fun setParams(params: Params) {
@@ -111,6 +116,25 @@ class ContributorsUI : JFrame("GitHub Contributors"), Contributors {
 
     override fun getParams(): Params {
         return Params(username.text, password.password.joinToString(""), org.text, getSelectedVariant())
+    }
+
+    override fun updateVideos(videos: List<Video>) {
+        val toTypedArray = videos.map { arrayOf(it.id, it.title) }.toTypedArray()
+//        if (toTypedArray.isNotEmpty()) {
+//            log.info("Updating result with ${toTypedArray.size} rows")
+//        }
+//        else {
+//            log.info("Clearing result")
+//        }
+        resultsModel.setDataVector(toTypedArray, COLUMNS)
+    }
+    override fun updateVideos(video: Video) {
+        setOfVideos.add(video)
+        if(video.title.matchesVideoConstraint()) resultsModel.addRow(arrayOf(video.id, video.title))
+    }
+
+    override fun getStartAndEnd(): Pair<Int, Int> {
+        return Pair(start.text.toInt(), end.text.toInt())
     }
 }
 
@@ -143,6 +167,9 @@ fun JPanel.addWideSeparator() {
     }
 }
 
+fun String.matchesVideoConstraint(): Boolean {
+    return contains("greenius", ignoreCase = true)
+}
 fun setDefaultFontSize(size: Float) {
     for (key in UIManager.getLookAndFeelDefaults().keys.toTypedArray()) {
         if (key.toString().toLowerCase().contains("font")) {

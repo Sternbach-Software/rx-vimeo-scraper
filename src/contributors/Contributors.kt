@@ -6,6 +6,11 @@ import io.reactivex.disposables.Disposable
 import kotlinx.coroutines.*
 import tasks.*
 import java.awt.event.ActionListener
+import java.io.File
+import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.StandardOpenOption
 import javax.swing.SwingUtilities
 import kotlin.coroutines.CoroutineContext
 
@@ -21,6 +26,7 @@ enum class Variant {
     RX,               // Request8Rx
     RX_PROGRESS       // Request9RxProgress
 }
+val setOfVideos = mutableSetOf<Video>()
 
 interface Contributors: CoroutineScope {
 
@@ -44,83 +50,102 @@ interface Contributors: CoroutineScope {
         }
 
         // Load stored params (user & password values)
-        loadInitialParams()
+//        loadInitialParams()
     }
 
     fun loadContributors() {
         val (username, password, org, _) = getParams()
         val req = RequestData(username, password, org)
-
+        val (start, end) = getStartAndEnd()
         clearResults()
         val service = createGitHubService(req.username, req.password)
 
         val startTime = System.currentTimeMillis()
-        when (getSelectedVariant()) {
-            BLOCKING -> { // Blocking UI thread
-                val users = loadContributorsBlocking(service, req)
-                updateResults(users, startTime)
-            }
-            BACKGROUND -> { // Blocking a background thread
-                loadContributorsBackground(service, req) { users ->
-                    SwingUtilities.invokeLater {
-                        updateResults(users, startTime)
-                    }
+//        when (getSelectedVariant()) {
+//            BLOCKING -> { // Blocking UI thread
+//                val users = loadContributorsBlocking(service, req)
+//                updateResults(users, startTime)
+//            }
+//            BACKGROUND -> { // Blocking a background thread
+//                loadContributorsBackground(service, req) { users ->
+//                    SwingUtilities.invokeLater {
+//                        updateResults(users, startTime)
+//                    }
+//                }
+//            }
+//            CALLBACKS -> { // Using callbacks
+//                loadContributorsCallbacks(service, req) { users ->
+//                    SwingUtilities.invokeLater {
+//                        updateResults(users, startTime)
+//                    }
+//                }
+//            }
+//            SUSPEND -> { // Using coroutines
+//                launch {
+//                    val users = loadContributorsSuspend(service, req)
+//                    updateResults(users, startTime)
+//                }.setUpCancellation()
+//            }
+//            CONCURRENT -> { // Performing requests concurrently
+//                launch {
+//                    val users = loadContributorsConcurrent(service, req)
+//                    updateResults(users, startTime)
+//                }.setUpCancellation()
+//            }
+//            NOT_CANCELLABLE -> { // Performing requests in a non-cancellable way
+//                launch {
+//                    val users = loadContributorsNotCancellable(service, req)
+//                    updateResults(users, startTime)
+//                }.setUpCancellation()
+//            }
+//            PROGRESS -> { // Showing progress
+//                launch(Dispatchers.Default) {
+//                    loadContributorsProgress(service, req) { users, completed ->
+//                        withContext(Dispatchers.Main) {
+//                            updateResults(users, startTime, completed)
+//                        }
+//                    }
+//                }.setUpCancellation()
+//            }
+//            CHANNELS -> {  // Performing requests concurrently and showing progress
+//                launch(Dispatchers.Default) {
+//                    loadContributorsChannels(service, req) { users, completed ->
+//                        withContext(Dispatchers.Main) {
+//                            updateResults(users, startTime, completed)
+//                        }
+//                    }
+//                }.setUpCancellation()
+//            }
+//            RX -> {  // Using RxJava
+//                loadContributorsReactive(service, req)
+//                    .subscribe { users ->
+//                        SwingUtilities.invokeLater {
+//                            updateResults(users, startTime)
+//                        }
+//                    }.setUpCancellation()
+//            }
+//            RX_PROGRESS -> {  // Using RxJava and showing progress { users, completed ->
+                loadVideosReactiveProgress(createVimeoService(),start..end).map {
+                    it.subscribe(
+                        {
+                            SwingUtilities.invokeLater {
+                                updateResults(it, startTime, false)
+                            }
+                        }, {
+                            SwingUtilities.invokeLater {
+                                setLoadingStatus("error ${it.message}, ${(System.currentTimeMillis() - startTime).let{time->"${time / 1000}." + "${time % 1000 / 100} sec"}}",false)
+                                setActionsStatus(newLoadingEnabled = true)
+                            }
+                        }, {
+                            SwingUtilities.invokeLater {
+                                updateLoadingStatus(COMPLETED, startTime)
+                                setActionsStatus(newLoadingEnabled = true)
+                            }
+                        }).setUpCancellation()
                 }
-            }
-            CALLBACKS -> { // Using callbacks
-                loadContributorsCallbacks(service, req) { users ->
-                    SwingUtilities.invokeLater {
-                        updateResults(users, startTime)
-                    }
-                }
-            }
-            SUSPEND -> { // Using coroutines
-                launch {
-                    val users = loadContributorsSuspend(service, req)
-                    updateResults(users, startTime)
-                }.setUpCancellation()
-            }
-            CONCURRENT -> { // Performing requests concurrently
-                launch {
-                    val users = loadContributorsConcurrent(service, req)
-                    updateResults(users, startTime)
-                }.setUpCancellation()
-            }
-            NOT_CANCELLABLE -> { // Performing requests in a non-cancellable way
-                launch {
-                    val users = loadContributorsNotCancellable(service, req)
-                    updateResults(users, startTime)
-                }.setUpCancellation()
-            }
-            PROGRESS -> { // Showing progress
-                launch(Dispatchers.Default) {
-                    loadContributorsProgress(service, req) { users, completed ->
-                        withContext(Dispatchers.Main) {
-                            updateResults(users, startTime, completed)
-                        }
-                    }
-                }.setUpCancellation()
-            }
-            CHANNELS -> {  // Performing requests concurrently and showing progress
-                launch(Dispatchers.Default) {
-                    loadContributorsChannels(service, req) { users, completed ->
-                        withContext(Dispatchers.Main) {
-                            updateResults(users, startTime, completed)
-                        }
-                    }
-                }.setUpCancellation()
-            }
-            RX -> {  // Using RxJava
-                loadContributorsReactive(service, req)
-                    .subscribe { users ->
-                        SwingUtilities.invokeLater {
-                            updateResults(users, startTime)
-                        }
-                    }.setUpCancellation()
-            }
-            RX_PROGRESS -> {  // Using RxJava and showing progress { users, completed ->
-                loadContributorsReactiveProgress(service, req)
-                    .subscribe({
+            /* loadContributorsReactiveProgress(service, req)
+                    .subscribe(
+                        {
                         SwingUtilities.invokeLater {
                             updateResults(it, startTime, false)
                         }
@@ -134,13 +159,41 @@ interface Contributors: CoroutineScope {
                             updateLoadingStatus(COMPLETED, startTime)
                             setActionsStatus(newLoadingEnabled = true)
                         }
-                    }).setUpCancellation()
-            }
-        }
+                    }).setUpCancellation()*/
+//            }
+//        }
     }
 
     private enum class LoadingStatus { COMPLETED, CANCELED, IN_PROGRESS }
 
+    fun String.matchesVideoConstraint(): Boolean {
+        return contains("greenius", ignoreCase = true)
+    }
+    @JvmName("updateResults1")
+    private fun updateResults(
+        video: Video,
+        startTime: Long,
+        completed: Boolean = true,
+    ) {
+        updateVideos(video)
+        updateLoadingStatus(if (completed) COMPLETED else IN_PROGRESS, startTime, setOfVideos.size)
+        if (completed) {
+            setActionsStatus(newLoadingEnabled = true)
+        }
+    }
+    fun writeVideosToFile(){
+        val outputFile = File("Results.txt").apply{createNewFile()}.toPath()
+        outputFile.writeLinesToFile(setOfVideos.map { "$baseUrl${it.id}" })
+    }
+
+    // rewrite text
+    @Throws(IOException::class)
+    fun Path.writeLinesToFile(list: List<String>) {
+        Files.write(
+            this, list,
+            StandardOpenOption.CREATE,
+        )
+    }
     private fun clearResults() {
         updateContributors(listOf())
         updateLoadingStatus(IN_PROGRESS)
@@ -161,10 +214,15 @@ interface Contributors: CoroutineScope {
 
     private fun updateLoadingStatus(
         status: LoadingStatus,
-        startTime: Long? = null
+        startTime: Long? = null,
+        videoSize: Int? = null
     ) {
         val time = if (startTime != null) {
-            val time = System.currentTimeMillis() - startTime
+            val time = (System.currentTimeMillis() - startTime).also{elapsed->
+                videoSize?.let{/*if(counter++ % 10 == 0)*/
+                    println("Speed:                       ${it.toLong()/(elapsed / 1000.0)} videos/sec")
+                }
+            }
             "${(time / 1000)}.${time % 1000 / 100} sec"
         } else ""
 
@@ -247,4 +305,10 @@ interface Contributors: CoroutineScope {
     fun setParams(params: Params)
 
     fun getParams(): Params
+
+    fun updateVideos(videos: List<Video>){}
+    fun updateVideos(video: Video){}
+
+    fun getStartAndEnd():Pair<Int,Int>{return Pair(1,1)}
+
 }
