@@ -129,10 +129,10 @@ class ContributorsUI : JFrame("GitHub Contributors"), Contributors {
         resultsModel.setDataVector(toTypedArray, COLUMNS)
     }
     override fun updateVideos(video: Video) {
-        setOfVideos.add(video)
-        if(video.title.matchesVideoConstraint()) resultsModel.addRow(arrayOf(video.id, video.title))
-        println("setOfVideos.size=${setOfVideos.size}, endTime=$endTime")
-        if(setOfVideos.size == endTime) resultsModel.addRow(arrayOf(video.id, "Done"))
+        if(video.title.matchesVideoConstraint()) {
+            setOfVideos.add(video)
+            resultsModel.addRow(arrayOf(video.id, video.title))
+        }
     }
 var startTime:Int? = null
 var endTime:Int? = null
