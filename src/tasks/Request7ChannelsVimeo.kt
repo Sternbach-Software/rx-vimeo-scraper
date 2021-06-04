@@ -32,7 +32,7 @@ fun <T> retrofit2.Response<T>.parseVideo(id: Int): Video {
     val body = body() as ResponseBody?
         ?: //        println("Body was null.")
         return Video(0,"")
-    val string = body.string()
+    val string = body. string()
     return Video(id, string.substringBetween("<title>", "</title>").let{
         if(it=="Verify to Continue") throw IllegalStateException("Please verify to continue")
         it

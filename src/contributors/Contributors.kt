@@ -1,7 +1,6 @@
 package contributors
 
 import contributors.Contributors.LoadingStatus.*
-import contributors.Variant.*
 import io.reactivex.disposables.Disposable
 import kotlinx.coroutines.*
 import tasks.*
@@ -38,14 +37,14 @@ interface Contributors: CoroutineScope {
     fun init() {
         // Start a new loading on 'load' click
         addLoadListener {
-            saveParams()
+//            saveParams()
             loadContributors()
         }
 
         // Save preferences and exit on closing the window
         addOnWindowClosingListener {
             job.cancel()
-            saveParams()
+//            saveParams()
             System.exit(0)
         }
 
@@ -54,11 +53,11 @@ interface Contributors: CoroutineScope {
     }
 
     fun loadContributors() {
-        val (username, password, org, _) = getParams()
-        val req = RequestData(username, password, org)
+//        val (username, password, org, _) = getParams()
+//        val req = RequestData(username, password, org)
         val (start, end) = getStartAndEnd()
         clearResults()
-        val service = createGitHubService(req.username, req.password)
+//        val service = createGitHubService(req.username, req.password)
 
         val startTime = System.currentTimeMillis()
 //        when (getSelectedVariant()) {
@@ -125,15 +124,16 @@ interface Contributors: CoroutineScope {
 //                    }.setUpCancellation()
 //            }
 //            RX_PROGRESS -> {  // Using RxJava and showing progress { users, completed ->
-                loadVideosReactiveProgress(createVimeoService(),start..end).map {
-                    it.subscribe(
+                loadVideosReactiveProgress(createVimeoService(),start..end).map {observableVideo->
+                    observableVideo.subscribe(
                         {
                             SwingUtilities.invokeLater {
                                 updateResults(it, startTime, false)
                             }
                         }, {
                             SwingUtilities.invokeLater {
-                                println("Done/error.")
+                                println("Done/error. ${observableVideo.blockingSingle().id}")
+                                println("error ${it.message}")
                                 setLoadingStatus("error ${it.message}, ${(System.currentTimeMillis() - startTime).let{time->"${time / 1000}." + "${time % 1000 / 100} sec"}}",false)
                                 setActionsStatus(newLoadingEnabled = true)
                             }
@@ -178,7 +178,7 @@ interface Contributors: CoroutineScope {
         completed: Boolean = true,
     ) {
         updateVideos(video)
-        updateLoadingStatus((if (completed) COMPLETED else IN_PROGRESS).also{println("Completed: $it")}, startTime, setOfVideos.size)
+        updateLoadingStatus((if (completed) COMPLETED else IN_PROGRESS).also{println("Completed: $it")}, startTime)
         if (completed) {
             setActionsStatus(newLoadingEnabled = true)
         }
@@ -216,13 +216,12 @@ interface Contributors: CoroutineScope {
 
     private fun updateLoadingStatus(
         status: LoadingStatus,
-        startTime: Long? = null,
-        videoSize: Int? = null
+        startTime: Long? = null
     ) {
         val time = if (startTime != null) {
             val time = (System.currentTimeMillis() - startTime).also{elapsed->
-                videoSize?.let{/*if(counter++ % 10 == 0)*/
-                    println("Speed:                       ${it.toLong()/(elapsed / 1000.0)} videos/sec")
+                videoCounter?.let{/*if(counter++ % 10 == 0)*/
+                    println("Speed:                       ${it/(elapsed / 1000.0)} videos/sec")
                 }
             }
             "${(time / 1000)}.${time % 1000 / 100} sec"

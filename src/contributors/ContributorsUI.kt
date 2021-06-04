@@ -13,6 +13,7 @@ import javax.swing.table.DefaultTableModel
 
 private val INSETS = Insets(3, 10, 3, 10)
 private val COLUMNS = arrayOf("Login", "Contributions")
+var videoCounter = 0
 
 @Suppress("CONFLICTING_INHERITED_JVM_DECLARATIONS")
 class ContributorsUI : JFrame("GitHub Contributors"), Contributors {
@@ -24,7 +25,7 @@ class ContributorsUI : JFrame("GitHub Contributors"), Contributors {
     private val variant = JComboBox<Variant>(Variant.values())
     private val load = JButton("Run")
     private val cancel = JButton("Cancel").apply { isEnabled = false }
-    private val export = JButton("Export").apply { isEnabled = false }
+    private val export = JButton("Export")
 
     private val resultsModel = DefaultTableModel(COLUMNS, 0)
     private val results = JTable(resultsModel)
@@ -90,7 +91,12 @@ class ContributorsUI : JFrame("GitHub Contributors"), Contributors {
     }
 
     override fun addLoadListener(listener: () -> Unit) {
-        load.addActionListener { listener() }
+        load.addActionListener {
+            startTime = start.text.toInt()
+            endTime = end.text.toInt()
+            videoCounter = 0
+            listener()
+        }
     }
 
     override fun addOnWindowClosingListener(listener: () -> Unit) {
@@ -104,7 +110,6 @@ class ContributorsUI : JFrame("GitHub Contributors"), Contributors {
     override fun setActionsStatus(newLoadingEnabled: Boolean, cancellationEnabled: Boolean) {
         load.isEnabled = newLoadingEnabled
         cancel.isEnabled = cancellationEnabled
-        export.isEnabled = newLoadingEnabled
     }
 
     override fun setParams(params: Params) {
@@ -129,6 +134,7 @@ class ContributorsUI : JFrame("GitHub Contributors"), Contributors {
         resultsModel.setDataVector(toTypedArray, COLUMNS)
     }
     override fun updateVideos(video: Video) {
+        println("Number of videos processed:   ${videoCounter++}")
         if(video.title.matchesVideoConstraint()) {
             setOfVideos.add(video)
             resultsModel.addRow(arrayOf(video.id, video.title))
