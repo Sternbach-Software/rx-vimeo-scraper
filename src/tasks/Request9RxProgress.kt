@@ -62,6 +62,7 @@ fun loadVideosReactiveProgress(
                 .subscribeOn(scheduler)
                 .doOnNext { println("Video recieved: $id") }
                 .map { response -> response.parseVideo(id) }
+                .apply{ println("Observable created: $id") }
         }
     return videos
 }
